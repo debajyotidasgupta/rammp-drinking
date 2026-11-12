@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+out/
+build/
+install/
+log/
+CLAUDE.md

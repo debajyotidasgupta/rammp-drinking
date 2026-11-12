@@ -1,0 +1,12 @@
+.git
+.venv
+Dockerfile
+.dockerignore
+**/__pycache__
+**/*.pyc
+build/
+install/
+log/
+out/
+docs/
+CLAUDE.md

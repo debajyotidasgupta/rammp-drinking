@@ -1,0 +1,61 @@
+# rammp_drinking's settings, layered into rammp_feeding's (its config.py: this file is RAMMP_DEFAULTS, over feeding's
+# config/rammp.yaml and under the site's local.yaml, wrist_mount.json and RAMMP_SET). Units are in the key names.
+# Drinking shares feeding's state folder (/config): one site file (the table, the wrist camera, profiles), one wrist
+# camera mount, one home pose. `drinking:` is this module's own; `drinking.delivery` goes over rammp_feeding's delivery
+# when drinking runs (the site file's delivery settings are the fork's).
+
+drinking:
+  poses: [home, drink_gaze, drink_hold, drink_deliver]   # the site's arm poses (rammp-drink capture <name>):
+                                # home        rammp_feeding's: parked beside the table, clear of the user
+                                # drink_gaze  the wrist camera looking at the cup where the operator puts it
+                                # drink_hold  holding the cup upright, clear of the table and of the user
+                                # drink_deliver  holding the cup upright facing the user, the camera on their face
+  mug:                          # SITE: the cup in use (a ruler; docs/porting.md)
+    tip_in_tool_m: null         # REQUIRED [x, y, z]: the point that goes to the mouth (the straw's end, or the rim nearest
+                                # the user), tool frame, the cup held as picked (the old system's cup: [0.070, 0.100, 0.180])
+    radius_m: null              # REQUIRED: the cup's outer radius (the old system's cup: about 0.044)
+    height_m: null              # REQUIRED: the cup's height, bottom to rim
+    handle_centre_above_bottom_m: null   # REQUIRED: the handle's centre (where the fingers go) above the cup's bottom
+    handle_to_axis_m: null      # REQUIRED: from the handle's face to the cup's axis, level
+    max_tilt_deg: 15.0          # the cup's axis at most this far off vertical on any move that holds it
+    padding_m: 0.01             # the cup grown this much for our check of each planned path
+  handle:                       # finding the cup's handle: the wrist camera from drink_gaze, SAM3's mask, the depth under it
+    prompts: [green handle, mug handle, cup handle]   # SAM3's words for it: the best-scored mask with depth is taken
+    score_threshold: 0.3
+    depth_frames: 10            # per-pixel median over this many frames after the arm stopped
+    depth_wait_s: 3.0
+    min_points: 80              # depth points on the handle at least
+    inlier_m: 0.03              # points further than this from the handle's median point: not the handle
+  grasp:                        # the old system's grasp, in the handle's frame (x up the handle, y right to left, z out of
+                                # its face toward the camera); the tool's orientation there level: roll level_roll_deg,
+                                # pitch 0, the yaw the handle gives (the old system's)
+    rpy_deg: [180.0, 0.0, 90.0]
+    level_roll_deg: 90.0
+    pre_m: [0.02, 0.0, 0.15]    # in front of the handle
+    inside_bottom_m: [0.02, 0.0, 0.017]   # the closed fingers in the handle's opening, low ...
+    inside_top_m: [0.05, 0.0, 0.017]      # ... and up against its top, where they open to hold it
+    lifted_m: [0.233, 0.0, 0.017]         # the cup lifted off the table
+    rise_m: 0.10                # the planner's path ends this far above in front of the handle, and the gripper goes
+                                # straight down from there (and back up after letting go): a low handle puts it close
+                                # to the table, inside the planner's own margin round the table
+    approach_mps: 0.03          # in front of the handle -> in it, and back out
+    lift_mps: 0.05              # up and down with the cup
+    ik_seeds_deg:               # where our IK starts for in front of the handle, after the arm's own joints (the Gen3,
+      - [0.0, 40.0, 0.0, 110.0, 0.0, -60.0, 90.0]     # reaching forward with the gripper level)
+      - [0.0, 20.0, 180.0, -120.0, 0.0, 80.0, -90.0]
+      - [0.0, 30.0, 0.0, 100.0, 0.0, 50.0, 90.0]
+    min_limit_margin_deg: 8.0   # in front of the handle, every joint at least this far from its limit (the planner
+                                # refuses a goal within its joint_limit_margin_rad, 0.1 rad, of one)
+    gripper_closed: 1.0         # the fingers closed to go into the handle, and to let go of it
+    gripper_open: 0.0           # the fingers opened inside the handle: the hold
+  sip_s: 10.0                   # the cup held at the mouth this long (the sip), then back
+  level_tol_deg: 10.0           # rammp-drink capture drink_hold / drink_deliver: levelled exactly if within this
+  min_tcp_above_table_m: 0.03   # an empty gripper's planned paths: the fingers at least this far above the table
+  delivery:                     # over rammp_feeding's delivery (the face, the open mouth, the straight approach), for the cup
+    stop_m: 0.10                # the cup's tip this far short of the mouth (the old system's 0.10-0.20 m): the user leans in
+    aim_dz_m: 0.0
+
+planner:
+  world_file: /config/drink_world.yaml          # our collision world, pushed before each planned move ...
+  world_file_in_planner: /feeding/drink_world.yaml   # ... where the planner's container reads it: the deployment mounts
+                                                     # the shared state folder into the planner at /feeding

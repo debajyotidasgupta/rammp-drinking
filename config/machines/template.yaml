@@ -1,0 +1,23 @@
+# Drinking's part of the robot's site file. Drinking shares rammp_feeding's state folder: add this to the same
+# local.yaml (/srv/rammp_feeding/config/local.yaml on the host, rammp_feeding's config/machines/template.yaml for the
+# rest) and fill in every value marked REQUIRED (docs/porting.md). Until they are set, `rammp-drink check` names what
+# is missing and every action that needs them refuses. Units are in the key names; positions are in the arm's base
+# frame (x forward, y left, z up), metres.
+
+workspace:                            # the table: shared with rammp_feeding (one table on this robot)
+  table_extent_m: null                # REQUIRED: the table's edges, {x: [near, far], y: [right, left]} (tape)
+  table_height_m: null                # the table's top, z (tape from the arm's base); null: from the cup's handle
+
+drinking:
+  mug:                                # the cup in use (a ruler)
+    tip_in_tool_m: null               # REQUIRED [x, y, z]: what goes to the mouth (the straw's end, or the rim nearest the
+                                      # user), tool frame (between the finger pads; y up, z toward the user), held as picked
+    radius_m: null                    # REQUIRED: outer radius
+    height_m: null                    # REQUIRED: bottom to rim
+    handle_centre_above_bottom_m: null   # REQUIRED: the handle's centre above the cup's bottom
+    handle_to_axis_m: null            # REQUIRED: the handle's face to the cup's axis, level
+  # sip_s: 10.0                       # the cup held at the mouth this long
+  # delivery:
+  #   stop_m: 0.10                    # the cup's tip this far short of the mouth (the user leans in)
+  # handle:
+  #   prompts: [green handle, mug handle, cup handle]   # SAM3's words for this cup's handle

@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>rammp_drinking</name>
+  <version>0.1.0</version>
+  <description>Robot-assisted drinking on the Kinova Gen3: the cup picked up by its handle from the wrist camera (SAM3),
+    brought to the user's open mouth and back, every move through kinova-gen3-ros2 and the RAMMP-CuRobo planner, on
+    rammp_feeding's guarded arm and delivery.</description>
+  <maintainer email="dd752@cornell.edu">Debajyoti Dasgupta</maintainer>
+  <license>Proprietary</license>
+  <exec_depend>rammp_feeding</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>launch</exec_depend>
+  <exec_depend>launch_ros</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>rammp_common_interfaces</exec_depend>
+  <exec_depend>rammp_orchestrator_interfaces</exec_depend>
+  <exec_depend>capability_engine</exec_depend>
+  <exec_depend>python3-numpy</exec_depend>
+  <exec_depend>python3-scipy</exec_depend>
+  <exec_depend>python3-yaml</exec_depend>
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

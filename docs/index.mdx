@@ -1,0 +1,34 @@
+---
+title: Robot-assisted drinking
+---
+
+# Robot-assisted drinking
+
+`rammp_drinking` gives a seated user a drink from their own cup, held by the Kinova Gen3's gripper. Each drink:
+1. **The pick:** the wrist camera finds the cup's handle (SAM3 and its depth). The fingers go into the handle, open to
+   hold it from inside, and lift the cup.
+2. **The sip:** the arm carries the cup upright to the delivery look, waits for an open mouth, measures it, and brings
+   the cup's tip to a short distance from it. It holds the cup there for the sip, then takes it back.
+3. **The put-down:** the cup is set back where it stood, the fingers let go, and the arm goes home.
+
+It is one RAMMP node, built on rammp-feeding (its guarded arm, path checks, cameras and face) and sharing its site
+setup. Every move goes through the arm node. Free-space moves are the shared RAMMP-CuRobo planner's paths, held level
+while the cup is carried, and checked by us for the cup. Straight-line moves are computed on the arm's model.
+
+Deploying: the [deployment checklist](porting.md). ROS interfaces: the [interface reference](interface.md).
+
+## Commands
+`rammp-drink <command>`, by hand. Under sheppy, the `drinking` node is a capability engine: the orchestrator starts
+its actions (`pick_up_drink`, `give_sip`, `put_down_drink`) and nothing moves otherwise ([interface](interface.md)).
+
+| Command | What it does |
+| --- | --- |
+| `check` | Every node, measurement and capture the module needs. Never moves. |
+| `state` | Where the arm is, and whether it holds the cup. Never moves. |
+| `capture home\|drink_gaze\|drink_hold\|drink_deliver` | The arm's joints now as that pose (the cup-holding ones levelled). Never moves. |
+| `gripper open\|close` | The gripper, to put a cup in or take it out by hand. |
+| `find-handle` | The cup's handle from here, and whether the grasp is in reach. Never moves. |
+| `pick` | Pick the cup up and hold it at `drink_hold`. |
+| `sip [--no-wait-open]` | One sip. |
+| `put-down` | Set the cup back where it stood, let go, and go home. |
+| `home` | A planned path home (the gripper empty). |
