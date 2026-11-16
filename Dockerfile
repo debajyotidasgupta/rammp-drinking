@@ -2,7 +2,7 @@
 # rammp_drinking as a RAMMP module image: the drinking engine (capability_engine.CapabilityEngine) and the rammp-drink
 # CLI, on rammp_feeding's image -- its guarded arm, path checks, cameras, MediaPipe face and the engine contract, which
 # this module uses as they are (the version pinned here). CPU only: SAM3 and cuRobo are their own nodes.
-ARG FEEDING_IMAGE=debajyotidasgupta/rammp-feeding:0.5.0
+ARG FEEDING_IMAGE=debajyotidasgupta/rammp-feeding:0.5.4
 FROM ${FEEDING_IMAGE}
 
 WORKDIR /module_ws

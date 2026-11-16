@@ -14,7 +14,7 @@ container): the site file, the table, the wrist camera's mount and the home pose
 
 ## 1. The image and the manifest
 ```bash
-docker pull debajyotidasgupta/rammp-drinking:0.1.0
+docker pull debajyotidasgupta/rammp-drinking:0.1.1
 ```
 - Save this as `/usr/local/bin/rammp-drink`, make it executable, and never run it while sheppy's `drinking` node is up:
   ```bash
@@ -22,7 +22,7 @@ docker pull debajyotidasgupta/rammp-drinking:0.1.0
   tty=-i; [ -t 0 ] && tty=-it
   exec docker run --rm $tty --network host --ipc host --user 1000:1000 -e ROS_DOMAIN_ID=0 -e HOME=/tmp \
     -v /srv/rammp_feeding/config:/config -v /srv/rammp_feeding/runs:/runs \
-    debajyotidasgupta/rammp-drinking:0.1.0 ros2 run rammp_drinking rammp-drink "$@"
+    debajyotidasgupta/rammp-drinking:0.1.1 ros2 run rammp_drinking rammp-drink "$@"
   ```
 - rammp-deployments' manifest: the `drinking` node, copied from this repo's `rammp-alternative.yaml`. The planner needs
   nothing new: our world goes into the folder both `curobo_planner` alternatives already mount at `/feeding`.
@@ -44,11 +44,14 @@ Add to `/srv/rammp_feeding/config/local.yaml` (from [`config/machines/template.y
 `sheppy up <robot>`, without `drinking`; the gripper empty.
 1. `rammp-drink capture drink_gaze`: the wrist camera on the cup where the operator puts it, about 0.2 m in front of
    its handle and 0.25 m above it, the whole handle in view. `rammp-drink find-handle` from there shows what it finds
-   and whether the grasp's poses are in reach.
+   and whether the grasp's poses are in reach. The gripper goes into the handle level, so where the handle faces
+   decides the reach: on an arm leaning forward on its mount, a handle facing the arm's base is out of reach; turn it to
+   face the arm's side (the side away from the user).
 2. Put the cup in the gripper by hand: `rammp-drink gripper close`, the handle over the closed fingers,
    `rammp-drink gripper open`. Then `rammp-drink capture drink_hold` (the cup upright, clear of the table and of the
-   user) and `rammp-drink capture drink_deliver` (the cup upright facing the seated user, the wrist camera on their
-   face). Both are levelled exactly as they are captured (`drinking.level_tol_deg`). Then take the cup out:
+   user) and `rammp-drink capture drink_deliver` (the cup upright facing the seated user from in front of them,
+   the wrist camera on their face: the planner has no path to a look that reaches over the robot's model of its
+   occupant). Both are levelled exactly as they are captured (`drinking.level_tol_deg`). Then take the cup out:
    `rammp-drink gripper close`.
 3. `rammp-drink check`: every row OK.
 

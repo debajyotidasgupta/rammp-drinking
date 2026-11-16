@@ -10,18 +10,21 @@ from dataclasses import dataclass
 import numpy as np
 
 from rammp_drinking.config import cfg  # noqa: I001  (first: rammp_feeding loads with drinking's defaults)
-from fake_robot import FakeRobot, Scene
+from fake_robot import TILT, FakeRobot, Scene
 from rammp_feeding.ros import Detection
 
-TABLE_Z = 0.15                                                      # (the cup far enough out and up for a level grasp)
+TABLE_Z = 0.095 if TILT else 0.15         # (TILT: rammp_feeding's tilt30 test site; level: the cup far enough out and up)
 
 
 @dataclass
 class CupScene(Scene):
     table_z: float = TABLE_Z
-    mouth: tuple = (-0.277, 0.306, TABLE_Z + 0.40)
-    handle_p: tuple = (0.80, -0.05, TABLE_Z + 0.05)                 # the handle's centre (fixture: 0.05 above the bottom)
-    handle_R: tuple = ((0.0, 0.0, -1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0))   # columns x up, y, z toward the arm
+    mouth: tuple = (-0.27, -0.20, 0.60) if TILT else (-0.277, 0.306, TABLE_Z + 0.40)
+    handle_p: tuple = (0.60, -0.15, TABLE_Z + 0.05) if TILT else (0.80, -0.05, TABLE_Z + 0.05)   # its centre (fixture:
+                                                                    # 0.05 above the cup's bottom)
+    handle_R: tuple = (((0.0, 1.0, 0.0), (0.0, 0.0, 1.0), (1.0, 0.0, 0.0)) if TILT else   # columns x up, y, z out of its
+                       ((0.0, 0.0, -1.0), (0.0, 1.0, 0.0), (1.0, 0.0, 0.0)))             # face: toward the arm (level);
+                                                                    # tilt30: toward +y, the side the leaning arm reaches
     handle_size: tuple = (0.06, 0.03)                               # along its x and y
 
 

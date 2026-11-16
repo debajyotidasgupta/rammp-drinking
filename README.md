@@ -13,7 +13,7 @@ shared planner's paths checked for what the gripper holds, the wrist camera, Med
 the mouth. It shares feeding's state folder: one site file, one table, one wrist camera mount, one home pose. Drinking
 needs the gripper empty: the fork is taken out by hand before drinking and put back after.
 
-**Release 0.1.0:** `debajyotidasgupta/rammp-drinking:0.1.0` (Docker Hub, arm64), on `rammp-feeding:0.5.0`, for the arm
+**Release 0.1.1:** `debajyotidasgupta/rammp-drinking:0.1.1` (Docker Hub, arm64), on `rammp-feeding:0.5.4`, for the arm
 stack's 2.0 generation (kinova-gen3-ros2 2.0.0, rammp-curobo 2.0.1).
 
 ## How a drink goes
@@ -53,11 +53,13 @@ launch/  tests/
 ## Build and test
 Tests run on an arm64 Docker host (a Jetson), not on a laptop:
 ```bash
-docker build --build-arg FEEDING_IMAGE=debajyotidasgupta/rammp-feeding:0.5.0 -t rammp_drinking:dev .
+docker build --build-arg FEEDING_IMAGE=debajyotidasgupta/rammp-feeding:0.5.4 -t rammp_drinking:dev .
 docker run --rm -v "$PWD:/work" -w /work rammp_drinking:dev bash tests/offline.sh   # unit tests + the whole drink (fake robot)
 ROBOT=<rammp-deployments config/robots/<robot>> tests/test_e2e.sh                   # the node's actions through the real 2.0
                                                                                      # driver, description and planner (a CUDA
                                                                                      # host); then the node as sheppy starts it
 ```
+Both run on two test sites (`tests/fixture.py`): the arm level on its mount (the default) and `RAMMP_TEST_SITE=tilt30`,
+rammp-feeding's arm leaning 30 deg (for the end to end, a robot folder of such an arm).
 To release: build `debajyotidasgupta/rammp-drinking:<version>` from the tagged commit on the feeding image it names,
 push it, and pin that tag in the manifest.

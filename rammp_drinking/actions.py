@@ -53,7 +53,7 @@ def pick_up(robot, arm: Arm, grip: Callable[[float], None], step: Step = _no_ste
     arm.hold(Gripper())
     step("gaze", 0.05, "Looking for the cup")
     grip(float(G.gripper_closed))
-    arm.travel(captured("drink_gaze"), "to drink_gaze")
+    arm.travel(captured("drink_gaze"), "to drink_gaze", pose=True)   # (its pose: the planner picks the arm's shape)
     step("find", 0.2, "Finding the cup's handle")
     h = find(robot, arm, out)
     tz, P = table_z(h), grasp_poses(h)
