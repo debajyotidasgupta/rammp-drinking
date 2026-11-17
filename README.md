@@ -14,7 +14,7 @@ the mouth. It shares feeding's state folder: one site file, one table, one wrist
 needs the gripper empty: the fork comes out first (by hand, or by rammp-feeding's put_down_fork where it hangs on a
 stand) and goes back after (pick_up_fork).
 
-**Release 0.1.3:** `debajyotidasgupta/rammp-drinking:0.1.3` (Docker Hub, arm64), on `rammp-feeding:0.6.2`, for the arm
+**Release 0.1.4:** `debajyotidasgupta/rammp-drinking:0.1.4` (Docker Hub, arm64), on `rammp-feeding:0.6.3`, for the arm
 stack's 2.0 generation (kinova-gen3-ros2 2.0.0, rammp-curobo 2.0.1).
 
 ## How a drink goes
@@ -56,7 +56,7 @@ launch/  tests/
 ## Build and test
 Tests run on an arm64 Docker host (a Jetson), not on a laptop:
 ```bash
-docker build --build-arg FEEDING_IMAGE=debajyotidasgupta/rammp-feeding:0.6.2 -t rammp_drinking:dev .
+docker build --build-arg FEEDING_IMAGE=debajyotidasgupta/rammp-feeding:0.6.3 -t rammp_drinking:dev .
 docker run --rm -v "$PWD:/work" -w /work rammp_drinking:dev bash tests/offline.sh   # unit tests + the whole drink (fake robot)
 ROBOT=<rammp-deployments config/robots/<robot>> tests/test_e2e.sh                   # the node's actions through the real 2.0
                                                                                      # driver, description and planner (a CUDA

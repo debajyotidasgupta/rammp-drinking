@@ -14,7 +14,7 @@ container): the site file, the table, the wrist camera's mount and the home pose
 
 ## 1. The image and the manifest
 ```bash
-docker pull debajyotidasgupta/rammp-drinking:0.1.3
+docker pull debajyotidasgupta/rammp-drinking:0.1.4
 ```
 - Save this as `/usr/local/bin/rammp-drink`, make it executable, and never run it while sheppy's `drinking` node is up:
   ```bash
@@ -22,7 +22,7 @@ docker pull debajyotidasgupta/rammp-drinking:0.1.3
   tty=-i; [ -t 0 ] && tty=-it
   exec docker run --rm $tty --network host --ipc host --user 1000:1000 -e ROS_DOMAIN_ID=0 -e HOME=/tmp \
     -v /srv/rammp_feeding/config:/config -v /srv/rammp_feeding/runs:/runs \
-    debajyotidasgupta/rammp-drinking:0.1.3 ros2 run rammp_drinking rammp-drink "$@"
+    debajyotidasgupta/rammp-drinking:0.1.4 ros2 run rammp_drinking rammp-drink "$@"
   ```
 - rammp-deployments' manifest: the `drinking` node, copied from this repo's `rammp-alternative.yaml`. The planner needs
   nothing new: our world goes into the folder both `curobo_planner` alternatives already mount at `/feeding`.
