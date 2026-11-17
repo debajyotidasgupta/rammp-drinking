@@ -61,6 +61,11 @@ def main() -> int:
             TestDrinking.sim.ros = ros
             return TestDrinking.sim
 
+        def _grip(self, position, speed=None, force=None):
+            """The driver's gripper, and where the handle stops the fingers (the driver's --sim has no handle)."""
+            super()._grip(position, speed, force)
+            return 0.5 if position == 0.0 else 1.0
+
     engine = TestDrinking()
     client = rclpy.create_node("e2e_orchestrator")
     status, resets, grips = [], [], []

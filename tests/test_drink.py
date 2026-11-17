@@ -15,7 +15,7 @@ from rammp_drinking.handle import Handle, grasp_poses  # noqa: E402
 from rammp_drinking.mug import Gripper  # noqa: E402
 from cup_robot import CupRobot, CupScene  # noqa: E402
 from fake_robot import FakeFace  # noqa: E402
-from rammp_feeding.arm import Arm  # noqa: E402
+from rammp_feeding.arm import Arm, MoveError  # noqa: E402
 from rammp_feeding.geometry import max_step  # noqa: E402
 
 
@@ -34,10 +34,15 @@ def main() -> int:
     robot = CupRobot(sc, captured("home"))
     arm = Arm(robot, kin=robot.kin, held=Gripper())
     grips = []
+
+    def grip(position, speed=None, force=None):                # the fingers: opened in the handle, stopped by it
+        grips.append(position)
+        return 0.5 if position == 0.0 else 1.0
     truth = Handle(np.asarray(sc.handle_p, float), np.asarray(sc.handle_R, float))
     P = grasp_poses(truth)
 
-    out = actions.pick_up(robot, arm, grips.append)
+    raw0 = np.degrees(np.array(robot.raw, float))
+    out = actions.pick_up(robot, arm, grip)
     s = config.session()
     h = Handle.from_json(s["handle"])
     assert grips == [1.0, 0.0], grips                      # closed into the handle, opened to hold it
@@ -58,12 +63,26 @@ def main() -> int:
                                                                          float(cfg.drinking.sip_s)))
 
     n = len(robot.tool_path)
-    actions.put_down(robot, arm, grips.append)
+    actions.put_down(robot, arm, grip)
     assert grips == [1.0, 0.0, 1.0], grips                 # closed: it let go
     assert config.session() == {}
     tail = robot.tool_path[n:]
     assert min(np.linalg.norm(np.asarray(p) - P["inside_top"][0]) for p in tail) < 0.006, "not set down where it stood"
     assert max_step(arm.q(), captured("home")) < 1.0
+    turned = np.degrees(np.array(robot.raw, float)) - raw0     # (every way back retraced its way out: no joint wound up)
+    assert np.abs(turned).max() < 1.0, np.round(turned, 1)
+
+    missed = []                                                # the fingers open fully: not in the handle
+    def grip_missed(position, speed=None, force=None):
+        missed.append(position)
+        return 0.0 if position == 0.0 else 1.0
+    try:
+        actions.pick_up(robot, arm, grip_missed)
+        raise AssertionError("a missed handle was picked up")
+    except MoveError as e:
+        assert "missed the handle" in str(e), e
+    assert missed == [1.0, 0.0, 1.0] and config.session() == {}
+    assert np.linalg.norm(arm.tool()[0] - P["pre"][0]) < 0.006       # backed out in front of it, empty
     print("THE DRINK GOES THROUGH (%d moves; picked up, a sip %.0f mm short of the mouth, set down where it stood, home)"
           % (len(robot.moves), 1000 * stop))
     return 0

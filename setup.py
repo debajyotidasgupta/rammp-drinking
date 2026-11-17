@@ -4,7 +4,7 @@ from setuptools import setup
 
 setup(
     name="rammp_drinking",
-    version="0.1.1",
+    version="0.1.2",
     packages=["rammp_drinking"],
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/rammp_drinking"]),

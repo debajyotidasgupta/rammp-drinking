@@ -119,9 +119,7 @@ class Drinking(CapabilityEngine):
             ctx.progress(name, pct, message, pausable=False)
             log.info("  [%s] %s", action_id, message)
 
-        def grip(position):
-            if not self.arm.gripper(float(position)):
-                raise MoveError("the gripper: %s" % (self.arm.last_error or "refused"))
+        grip = self._grip
         robot = None
         try:
             self.arm.begin_action(ctx, bytes(self._token))   # (the gripper's commands carry the token too)
@@ -171,6 +169,14 @@ class Drinking(CapabilityEngine):
                 "put_down_drink": {"put_down": True}}[action_id]
 
     # ------------------------------------------------------------------ the robot, per action
+    def _grip(self, position: float, speed: float | None = None, force: float | None = None) -> float | None:
+        """The fingers to position through the engine library (the action's token), and where they stopped."""
+        from rammp_drinking import actions
+        from rammp_feeding.arm import MoveError
+        if not self.arm.gripper(float(position), force=force, speed=speed):
+            raise MoveError("the gripper: %s" % (self.arm.last_error or "refused"))
+        return actions.fingers(self.arm)
+
     def _robot(self, check):
         from rammp_feeding.ros import Robot
         return Robot(node=self, group=self._group, roles=("camera",), check=check, static_tf=lambda msg: None,

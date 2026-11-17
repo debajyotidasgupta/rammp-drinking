@@ -14,7 +14,7 @@ container): the site file, the table, the wrist camera's mount and the home pose
 
 ## 1. The image and the manifest
 ```bash
-docker pull debajyotidasgupta/rammp-drinking:0.1.1
+docker pull debajyotidasgupta/rammp-drinking:0.1.2
 ```
 - Save this as `/usr/local/bin/rammp-drink`, make it executable, and never run it while sheppy's `drinking` node is up:
   ```bash
@@ -22,7 +22,7 @@ docker pull debajyotidasgupta/rammp-drinking:0.1.1
   tty=-i; [ -t 0 ] && tty=-it
   exec docker run --rm $tty --network host --ipc host --user 1000:1000 -e ROS_DOMAIN_ID=0 -e HOME=/tmp \
     -v /srv/rammp_feeding/config:/config -v /srv/rammp_feeding/runs:/runs \
-    debajyotidasgupta/rammp-drinking:0.1.1 ros2 run rammp_drinking rammp-drink "$@"
+    debajyotidasgupta/rammp-drinking:0.1.2 ros2 run rammp_drinking rammp-drink "$@"
   ```
 - rammp-deployments' manifest: the `drinking` node, copied from this repo's `rammp-alternative.yaml`. The planner needs
   nothing new: our world goes into the folder both `curobo_planner` alternatives already mount at `/feeding`.
@@ -33,12 +33,15 @@ Add to `/srv/rammp_feeding/config/local.yaml` (from [`config/machines/template.y
 | Key | How |
 | --- | --- |
 | `workspace.table_height_m` | Tape from the arm's base to the table's top (z). Feeding uses it too. Unset, the cup's handle gives it. |
+| `drinking.table.height_m`, `extent_m` | Only when the cup stands on a table of its own: its top and edges (its near edge clear of the arm's base) |
 | `drinking.mug.tip_in_tool_m` | Ruler, the cup in the gripper as picked up: the tool frame (between the finger pads; y up, z toward the user) to what goes to the mouth (the straw's end, or the rim nearest the user) |
 | `drinking.mug.radius_m`, `height_m` | Ruler |
 | `drinking.mug.handle_centre_above_bottom_m` | Ruler: the handle's centre (where the fingers go) above the cup's bottom |
-| `drinking.mug.handle_to_axis_m` | Ruler: the handle's face to the cup's axis |
+| `drinking.mug.handle_to_axis_m` | Ruler: the handle's centre to the cup's axis behind its face; for a handle beside the cup (its opening toward the camera), `[x, y, z]` in the handle's frame (x up, y right to left, z out of its face) |
+| `drinking.grasp.inside_bottom_m`, `inside_top_m`, `lifted_m` | The fingers' depth in the handle (z: 0.008 puts their tips about 4 cm past its face) and how far up under its top bar they open (x) |
 
-`drinking.handle.prompts` are SAM3's words for the handle (a coloured handle: name its colour first).
+`drinking.handle.prompts` are SAM3's words for the handle (a coloured handle: name its colour first). The fingers aim at
+the opening inside the handle's outline; `handle.inlier_m` must take in the whole handle (a C 17 cm tall: 0.12).
 
 ## 3. Capture
 `sheppy up <robot>`, without `drinking`; the gripper empty.

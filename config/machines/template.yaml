@@ -15,7 +15,7 @@ drinking:
     radius_m: null                    # REQUIRED: outer radius
     height_m: null                    # REQUIRED: bottom to rim
     handle_centre_above_bottom_m: null   # REQUIRED: the handle's centre above the cup's bottom
-    handle_to_axis_m: null            # REQUIRED: the handle's face to the cup's axis, level
+    handle_to_axis_m: null            # REQUIRED: the handle's centre to the cup's axis behind its face, or [x, y, z] in its frame
   # sip_s: 10.0                       # the cup held at the mouth this long
   # delivery:
   #   stop_m: 0.10                    # the cup's tip this far short of the mouth (the user leans in)

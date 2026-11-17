@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>rammp_drinking</name>
-  <version>0.1.1</version>
+  <version>0.1.2</version>
   <description>Robot-assisted drinking on the Kinova Gen3: the cup picked up by its handle from the wrist camera (SAM3),
     brought to the user's open mouth and back, every move through kinova-gen3-ros2 and the RAMMP-CuRobo planner, on
     rammp_feeding's guarded arm and delivery.</description>

@@ -4,7 +4,9 @@ find       one colour frame and a depth median from frames after the arm stopped
            drinking.handle.prompts; the best-scored mask with enough depth under it; its points in the base frame, those
            within inlier_m of their median kept; a plane through them (its normal toward the camera: the frame's z); x
            the base frame's up laid into that plane (the cup stands on the table: the handle runs up it); y = z x x;
-           the origin the centre of the points' smallest enclosing rectangle in the plane
+           the origin the centre of the points' smallest enclosing rectangle in the plane, or, where the mask's
+           outline encloses an opening (its convex hull less the mask: a ring or a C against the cup's wall), the
+           opening's centre on that plane -- where the fingers go
 grasp      a tool pose per drinking.grasp offset, in the handle's frame turned by grasp.rpy_deg, then levelled: roll
            level_roll_deg, pitch 0, and the yaw that gives (the old system's poses, exactly)
 """
@@ -69,6 +71,35 @@ def frame_from_points(pts: np.ndarray, camera_at: np.ndarray) -> tuple[np.ndarra
     return c + cu * x + cv * y, np.stack([x, y, n], 1), [float(sx), float(sy)]
 
 
+def opening(mask: np.ndarray, arm, q, p: np.ndarray, R: np.ndarray):
+    """The opening the handle's mask outlines -- its convex hull less the mask, the largest piece of at least
+    handle.min_opening_px -- as (its centre on the handle's plane, [its height, its width] there), or None."""
+    import cv2
+    from rammp_feeding import scene
+    m = np.asarray(mask, np.uint8)
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    if not cs:
+        return None
+    hull = np.zeros_like(m)
+    cv2.fillConvexPoly(hull, cv2.convexHull(max(cs, key=cv2.contourArea)), 1)
+    n, lab, stats, cent = cv2.connectedComponentsWithStats(((hull > 0) & (m == 0)).astype(np.uint8))
+    if n < 2:
+        return None
+    i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
+    if stats[i, cv2.CC_STAT_AREA] < int(D().handle.min_opening_px):
+        return None
+    o, Rc = scene.camera_pose(arm, q)
+    c = arm.cam.colour
+
+    def on_plane(u, v):                                  # a colour pixel's ray met with the handle's plane
+        d = Rc @ np.array([(u - c.cx) / c.fx, (v - c.cy) / c.fy, 1.0])
+        return o + d * float((p - o) @ R[:, 2]) / float(d @ R[:, 2])
+    x, y, w, h = (int(v) for v in stats[i, :4])
+    corners = np.array([on_plane(x, y), on_plane(x + w, y + h)])
+    span = np.abs((corners[1] - corners[0]) @ R[:, :2])
+    return on_plane(*cent[i]), [float(span[0]), float(span[1])]
+
+
 def find(robot, arm, out: Path | None = None) -> Handle:
     """The handle as the wrist camera sees it from here (the arm still)."""
     from rammp_feeding import scene
@@ -93,6 +124,11 @@ def find(robot, arm, out: Path | None = None) -> Handle:
             why = "the handle's mask has %d depth points (at least %d)" % (len(pts), int(H.min_points))
             continue
         p, R, size = frame_from_points(pts, o)
+        hole = opening(d.mask, arm, q, p, R)
+        if hole is not None:
+            log.info("  the handle's opening %.0f x %.0f mm (high x across), %.0f mm from its outline's centre",
+                     1000 * hole[1][0], 1000 * hole[1][1], 1000 * np.linalg.norm(hole[0] - p))
+            p = hole[0]
         best = Handle(p, R, len(pts), float(d.score), size)
         break
     record.save_json(out, "handle.json", dict(handle=None if best is None else best.to_json(), why=None if best else why,

@@ -13,7 +13,7 @@ from scipy.spatial.transform import Rotation  # noqa: E402
 from rammp_drinking import config  # noqa: E402
 from rammp_drinking.config import cfg  # noqa: E402
 from rammp_drinking.handle import Handle, frame_from_points, grasp_poses, handle_in_tool, nominal  # noqa: E402
-from rammp_drinking.mug import Gripper, Mug, cup_axis, table_z, world  # noqa: E402
+from rammp_drinking.mug import Gripper, Mug, cup_axis, cup_table, table_z, world  # noqa: E402
 
 
 def old_pose(handle_pos, handle_quat, offset_rpy, offset_xyz):
@@ -69,6 +69,35 @@ class HandleFrame(unittest.TestCase):
         with self.assertRaises(ValueError):
             frame_from_points(pts, np.array([0.0, 0.0, 0.5]))
 
+
+
+class Opening(unittest.TestCase):
+    def test_the_fingers_aim_at_the_opening_not_the_outline(self):
+        """A C-shaped handle against the cup's wall: the aim is the opening's centre, on the handle's plane."""
+        import types
+        from rammp_drinking import handle as H
+        from rammp_feeding import scene
+        m = np.zeros((480, 640), bool)
+        m[100:120, 200:400] = m[280:300, 200:400] = m[100:300, 380:400] = True    # top and bottom bars, the outer bar
+        colour = types.SimpleNamespace(fx=600.0, fy=600.0, cx=320.0, cy=240.0)
+        arm = types.SimpleNamespace(cam=types.SimpleNamespace(colour=colour))
+        pose, scene.camera_pose = scene.camera_pose, lambda a, q: (np.zeros(3), np.eye(3))
+        try:
+            p, size = H.opening(m, arm, None, np.array([0.0, 0.0, 1.0]), np.eye(3))   # its plane 1 m ahead
+        finally:
+            scene.camera_pose = pose
+        self.assertTrue(np.allclose(p, [(289.5 - 320) / 600, (199.5 - 240) / 600, 1.0], atol=1e-3))
+        self.assertAlmostEqual(size[0], 180 / 600, delta=0.01)
+        self.assertAlmostEqual(size[1], 160 / 600, delta=0.01)
+        self.assertIsNone(H.opening(np.zeros((480, 640), bool), arm, None, np.zeros(3), np.eye(3)))
+
+
+class Table(unittest.TestCase):
+    def test_the_site_table_unless_the_cup_has_its_own(self):
+        th, ext = cup_table()
+        self.assertEqual(th, cfg.workspace.get("table_height_m", None))
+        self.assertEqual(list(ext.x), list(cfg.workspace.table_extent_m.x))
+        self.assertEqual(Gripper().table, th)
 
 class Cup(unittest.TestCase):
     def test_upright_in_the_gripper(self):

@@ -24,17 +24,25 @@ from rammp_feeding.arm import Held
 from rammp_feeding.geometry import rpy_matrix
 
 
+def cup_table() -> tuple[float | None, dict]:
+    """The cup's table: (its top z or None, its extent {x: [near, far], y: [right, left]}) -- drinking.table where set
+    (the cup on its own table), else the site's one table (workspace, shared with rammp_feeding)."""
+    T, W = D().table, cfg.workspace
+    th = T.get("height_m", None)
+    return (W.get("table_height_m", None) if th is None else th), (T.get("extent_m", None) or W.table_extent_m)
+
+
 def table_z(h: Handle) -> float:
-    """The table's top: the site's workspace.table_height_m (one table, shared with rammp_feeding), else the bottom of
-    the cup standing on it, from its handle."""
-    th = cfg.workspace.get("table_height_m", None)
+    """The cup's table's top (cup_table()), else the bottom of the cup standing on it, from its handle."""
+    th = cup_table()[0]
     return float(h.p[2] - float(D().mug.handle_centre_above_bottom_m) if th is None else th)
 
 
 def cup_axis(h: Handle) -> tuple[np.ndarray, np.ndarray]:
     """(the cup's bottom centre, its up axis) in the handle's frame's parent, from its handle."""
     M = D().mug
-    a = h.p - h.R[:, 2] * float(M.handle_to_axis_m)            # the cup's axis, level with the handle (behind its face)
+    v = M.handle_to_axis_m                                      # behind its face (a number), or [x, y, z] in its frame
+    a = h.p + h.R @ np.asarray(v, float) if isinstance(v, (list, tuple)) else h.p - h.R[:, 2] * float(v)
     up = h.R[:, 0]
     return a - up * float(M.handle_centre_above_bottom_m), up
 
@@ -51,7 +59,7 @@ def world(table: float | None, cup: Handle | None, raise_m: float) -> dict:
     from rammp_feeding.scene import user_mouth, user_obstacles
     obs = [dict(name="pedestal", position=[0.0, 0.0, -0.05], dims=[0.14, 0.14, 0.04])]   # (the planner's own: unpadded)
     if table is not None:
-        ext = cfg.workspace.table_extent_m
+        ext = cup_table()[1]
         tx, ty = [float(v) for v in ext.x], [float(v) for v in ext.y]
         top = table + raise_m
         obs.append(dict(name="table", position=[sum(tx) / 2, sum(ty) / 2, top - 0.025],
@@ -89,11 +97,12 @@ class Gripper(Held):
     max_tilt_deg = 180.0
 
     def __init__(self, table: float | None = None, cup: Handle | None = None, camera: bool = True):
-        self.table, self.cup = table, cup                       # the table's top, the cup standing there (None: unseen)
+        self.table = cup_table()[0] if table is None else table     # the table's top (None: not known yet) ...
+        self.cup = cup                                          # ... and the cup standing there (None: unseen)
         self.camera = camera                                    # (False: an arm built without the wrist camera's model)
 
     def floor(self, x: float, y: float) -> float:
-        ext = cfg.workspace.table_extent_m
+        ext = cup_table()[1]
         if self.table is not None and ext.x[0] <= x <= ext.x[1] and ext.y[0] <= y <= ext.y[1]:
             return self.table + float(D().min_tcp_above_table_m)
         return -math.inf
@@ -125,7 +134,7 @@ class Mug(Held):
         from rammp_feeding.scene import user_mouth, user_obstacles
         obs = []
         if self.table is not None:
-            ext = cfg.workspace.table_extent_m
+            ext = cup_table()[1]
             tx, ty = [float(v) for v in ext.x], [float(v) for v in ext.y]
             obs.append(dict(name="table", position=[sum(tx) / 2, sum(ty) / 2, self.table - 0.025],
                             dims=[tx[1] - tx[0], ty[1] - ty[0], 0.05]))

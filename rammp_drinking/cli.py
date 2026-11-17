@@ -41,14 +41,16 @@ class _Ctx:
 def gripper(robot):
     """(grip(position), close()): the gripper through the engine library's ArmInterface, on this command's node."""
     from capability_engine.arm import ArmInterface
+    from rammp_drinking import actions
     from rammp_feeding.arm import MoveError
     from rclpy.callback_groups import ReentrantCallbackGroup
     a = ArmInterface(robot.node, ReentrantCallbackGroup(), standalone=True)
     a.begin_action(_Ctx(), bytes(robot.token))
 
-    def grip(position: float) -> None:
-        if not a.gripper(float(position)):
+    def grip(position: float, speed: float | None = None, force: float | None = None) -> float | None:
+        if not a.gripper(float(position), force=force, speed=speed):
             raise MoveError("the gripper: %s" % (a.last_error or "refused"))
+        return actions.fingers(a)
     return grip, a.end_action
 
 
