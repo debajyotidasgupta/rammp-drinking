@@ -11,7 +11,8 @@ orchestrator starts its actions, `pick_up_drink`, `give_sip` (one sip) and `put_
 It is built on rammp-feeding's image and uses its code as it is: the guarded arm (every move checked as it runs), the
 shared planner's paths checked for what the gripper holds, the wrist camera, MediaPipe's face and the presentation at
 the mouth. It shares feeding's state folder: one site file, one table, one wrist camera mount, one home pose. Drinking
-needs the gripper empty: the fork is taken out by hand before drinking and put back after.
+needs the gripper empty: the fork comes out first (by hand, or by rammp-feeding's put_down_fork where it hangs on a
+stand) and goes back after (pick_up_fork).
 
 **Release 0.1.1:** `debajyotidasgupta/rammp-drinking:0.1.1` (Docker Hub, arm64), on `rammp-feeding:0.5.4`, for the arm
 stack's 2.0 generation (kinova-gen3-ros2 2.0.0, rammp-curobo 2.0.1).
