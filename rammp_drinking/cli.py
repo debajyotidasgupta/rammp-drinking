@@ -48,7 +48,7 @@ def gripper(robot):
     a.begin_action(_Ctx(), bytes(robot.token))
 
     def grip(position: float, speed: float | None = None, force: float | None = None) -> float | None:
-        if not a.gripper(float(position), force=force, speed=speed):
+        if not a.gripper(float(position), float(config.D().grasp.gripper_timeout_s), force=force, speed=speed):
             raise MoveError("the gripper: %s" % (a.last_error or "refused"))
         return actions.fingers(a)
     return grip, a.end_action

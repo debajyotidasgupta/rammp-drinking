@@ -7,6 +7,7 @@
 workspace:                            # the table: shared with rammp_feeding (one table on this robot)
   table_extent_m: null                # REQUIRED: the table's edges, {x: [near, far], y: [right, left]} (tape)
   table_height_m: null                # the table's top, z (tape from the arm's base); null: from the cup's handle
+# drinking: {table: {height_m: ..., extent_m: {x: [..], y: [..]}}}   # only for a cup on a table of its own
 
 drinking:
   mug:                                # the cup in use (a ruler)

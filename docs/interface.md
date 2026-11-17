@@ -81,7 +81,7 @@ token and the engine's id (`drinking`).
 
 | Path | Contents |
 | --- | --- |
-| `/config/local.yaml` | The site file: the table (`workspace.table_extent_m`, `workspace.table_height_m`), the profiles, the cup (`drinking.mug`) |
+| `/config/local.yaml` | The site file: the table (`workspace.table_extent_m`, `workspace.table_height_m`; the cup's own: `drinking.table`), the profiles, the cup (`drinking.mug`) |
 | `/config/wrist_mount.json` | The wrist camera's mount (rammp-feeding's `rammp calibrate-wrist`) |
 | `/config/{home,drink_gaze,drink_hold,drink_deliver}.json` | Captured poses (`home` is rammp-feeding's) |
 | `/config/drink_state.json` | The cup this session: where it was picked up, while the gripper holds it |

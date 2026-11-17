@@ -99,6 +99,32 @@ class Table(unittest.TestCase):
         self.assertEqual(list(ext.x), list(cfg.workspace.table_extent_m.x))
         self.assertEqual(Gripper().table, th)
 
+    def test_a_cup_on_its_own_table_keeps_both_in_our_checks(self):
+        """The cup's table where it stands, the site's where it is: our floor over each; the planner's world the cup's."""
+        from rammp_drinking.mug import tables, world
+        W, T = cfg["workspace"], cfg["drinking"]["table"]             # (the stored sections: attributes are copies)
+        site, keep = W.get("table_height_m", None), dict(T)
+        try:
+            W["table_height_m"] = -0.03
+            T["height_m"], T["extent_m"] = 0.02, {"x": [0.9, 1.2], "y": [-0.3, 0.3]}
+            g = Gripper()
+            self.assertEqual([round(z, 3) for z, _ in tables(g.table)], [0.02, -0.03])
+            m = float(cfg.drinking.min_tcp_above_table_m)
+            x0, y0 = float(W["table_extent_m"]["x"][0]) + 0.01, float(W["table_extent_m"]["y"][0]) + 0.01
+            self.assertAlmostEqual(g.floor(1.0, 0.0), 0.02 + m)
+            self.assertAlmostEqual(g.floor(x0, y0), -0.03 + m)
+            self.assertEqual([o["name"] for o in world(g.table, None, m)["obstacles"] if "table" in o["name"]], ["table"])
+            T["extent_m"] = None
+            with self.assertRaises(ValueError):
+                cup_table()
+        finally:
+            T.clear()
+            T.update(keep)
+            if site is None:
+                W.pop("table_height_m", None)
+            else:
+                W["table_height_m"] = site
+
 class Cup(unittest.TestCase):
     def test_upright_in_the_gripper(self):
         m = Mug(None, table=0.0)

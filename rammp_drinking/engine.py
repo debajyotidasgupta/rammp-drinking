@@ -58,7 +58,6 @@ class Drinking(CapabilityEngine):
         self.create_service(AcquireControl, "~/acquire_control", self._on_acquire_control, callback_group=self._group)
         self.create_service(ReleaseControl, "~/release_control", self._on_release_control, callback_group=self._group)
         self._face = None                                    # MediaPipe, loaded by the first sip and kept
-        self._last = None                                    # the handle last found (recover: out of it)
         self._mock_holding = False                           # (mock: no state written)
 
     def _holding(self) -> bool:
@@ -127,11 +126,9 @@ class Drinking(CapabilityEngine):
             step("setup", 0.0, "Getting the arm ready")
             from rammp_drinking.mug import Gripper
             arm = Arm(robot, held=Gripper())
-            actions.recover(robot, arm, self._last)
+            actions.recover(robot, arm)
             if action_id == "pick_up_drink":
-                out = actions.pick_up(robot, arm, grip, step)
-                self._last = None
-                return out
+                return actions.pick_up(robot, arm, grip, step)
             if action_id == "give_sip":
                 if self._face is None:
                     from rammp_feeding.face import Face
@@ -173,7 +170,7 @@ class Drinking(CapabilityEngine):
         """The fingers to position through the engine library (the action's token), and where they stopped."""
         from rammp_drinking import actions
         from rammp_feeding.arm import MoveError
-        if not self.arm.gripper(float(position), force=force, speed=speed):
+        if not self.arm.gripper(float(position), float(config.D().grasp.gripper_timeout_s), force=force, speed=speed):
             raise MoveError("the gripper: %s" % (self.arm.last_error or "refused"))
         return actions.fingers(self.arm)
 

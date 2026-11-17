@@ -28,8 +28,31 @@ def cup_table() -> tuple[float | None, dict]:
     """The cup's table: (its top z or None, its extent {x: [near, far], y: [right, left]}) -- drinking.table where set
     (the cup on its own table), else the site's one table (workspace, shared with rammp_feeding)."""
     T, W = D().table, cfg.workspace
-    th = T.get("height_m", None)
-    return (W.get("table_height_m", None) if th is None else th), (T.get("extent_m", None) or W.table_extent_m)
+    if T.get("height_m", None) is None:
+        return W.get("table_height_m", None), W.table_extent_m
+    if T.get("extent_m", None) is None:
+        raise ValueError("drinking.table.height_m is set without drinking.table.extent_m (local.yaml)")
+    return float(T.height_m), T.extent_m
+
+
+def tables(top: float | None) -> list[tuple[float, dict]]:
+    """Every table the arm keeps clear of, (top z, extent): the cup's at `top` (None: not known yet) and, when the cup
+    has a table of its own, the site's too."""
+    out = [] if top is None else [(float(top), cup_table()[1])]
+    W = cfg.workspace
+    if D().table.get("height_m", None) is not None and W.get("table_height_m", None) is not None:
+        out.append((float(W.table_height_m), W.table_extent_m))
+    return out
+
+
+def _table_boxes(top: float | None, raise_m: float, every: bool = True) -> list[dict]:
+    """The tables (tables(top); every=False: the cup's only) as boxes, their tops raised by raise_m."""
+    out = []
+    for i, (z, ext) in enumerate(tables(top)[:None if every else 1]):
+        tx, ty = [float(v) for v in ext.x], [float(v) for v in ext.y]
+        out.append(dict(name="table" if i == 0 else "table_%d" % (i + 1), position=[sum(tx) / 2, sum(ty) / 2,
+                        z + raise_m - 0.025], dims=[tx[1] - tx[0], ty[1] - ty[0], 0.05]))
+    return out
 
 
 def table_z(h: Handle) -> float:
@@ -54,16 +77,12 @@ def _boxes(obstacles: list[dict]):
 
 
 def world(table: float | None, cup: Handle | None, raise_m: float) -> dict:
-    """The planner's world: the table's top at `table` (None: not yet seen), raised by raise_m; the cup standing at its
-    handle `cup` (None: held, or not seen); the user once their mouth is measured."""
+    """The planner's world: the cup's table, its top at `table` (None: not yet seen), raised by raise_m (the site's
+    table, when the cup has its own, only in our checks: raised, its near edge would reach the arm's base); the cup
+    standing at its handle `cup` (None: held, or not seen); the user once their mouth is measured."""
     from rammp_feeding.scene import user_mouth, user_obstacles
     obs = [dict(name="pedestal", position=[0.0, 0.0, -0.05], dims=[0.14, 0.14, 0.04])]   # (the planner's own: unpadded)
-    if table is not None:
-        ext = cup_table()[1]
-        tx, ty = [float(v) for v in ext.x], [float(v) for v in ext.y]
-        top = table + raise_m
-        obs.append(dict(name="table", position=[sum(tx) / 2, sum(ty) / 2, top - 0.025],
-                        dims=[tx[1] - tx[0], ty[1] - ty[0], 0.05]))
+    obs += _table_boxes(table, raise_m, every=False)
     if cup is not None:
         M = D().mug
         b, up = cup_axis(cup)
@@ -102,10 +121,8 @@ class Gripper(Held):
         self.camera = camera                                    # (False: an arm built without the wrist camera's model)
 
     def floor(self, x: float, y: float) -> float:
-        ext = cup_table()[1]
-        if self.table is not None and ext.x[0] <= x <= ext.x[1] and ext.y[0] <= y <= ext.y[1]:
-            return self.table + float(D().min_tcp_above_table_m)
-        return -math.inf
+        tops = [z for z, e in tables(self.table) if e.x[0] <= x <= e.x[1] and e.y[0] <= y <= e.y[1]]
+        return max(tops) + float(D().min_tcp_above_table_m) if tops else -math.inf
 
     def push_world(self, robot) -> None:
         push(robot, world(self.table, self.cup, float(D().min_tcp_above_table_m)))
@@ -132,12 +149,7 @@ class Mug(Held):
 
     def boxes(self):
         from rammp_feeding.scene import user_mouth, user_obstacles
-        obs = []
-        if self.table is not None:
-            ext = cup_table()[1]
-            tx, ty = [float(v) for v in ext.x], [float(v) for v in ext.y]
-            obs.append(dict(name="table", position=[sum(tx) / 2, sum(ty) / 2, self.table - 0.025],
-                            dims=[tx[1] - tx[0], ty[1] - ty[0], 0.05]))
+        obs = _table_boxes(self.table, 0.0)
         m = user_mouth()
         if m is not None:
             obs += user_obstacles(m)

@@ -29,7 +29,8 @@ drinking:
     min_points: 80              # depth points on the handle at least
     inlier_m: 0.03              # points further than this from the handle's median point: not the handle
     min_opening_px: 150         # the opening inside the mask's outline (its hull less the mask) at least this many
-                                # pixels: the fingers go into its centre; smaller, into the outline's centre
+    min_opening_m: 0.03         # pixels and this wide both ways (the closed fingers): they go into its centre; else
+                                # into the outline's centre
   grasp:                        # the old system's grasp, in the handle's frame (x up the handle, y right to left, z out of
                                 # its face toward the camera); the tool's orientation there level: roll level_roll_deg,
                                 # pitch 0, the yaw the handle gives (the old system's)
@@ -55,7 +56,7 @@ drinking:
     open_speed: 0.2             # the fingers open in the handle slowly (a fraction of the 2F-85's fastest) ...
     open_force: 0.4             # ... at this fraction of its force: they settle on the handle without tipping the cup
     lock_margin: 0.05           # opened to within this of gripper_open: nothing between them, the handle missed
-    settle_s: 0.5               # the fingers' position read this long after each command
+    gripper_timeout_s: 8.0      # a gripper command waits until the fingers stop, at most this long (a slow full stroke)
   sip_s: 10.0                   # the cup held at the mouth this long (the sip), then back
   level_tol_deg: 10.0           # rammp-drink capture drink_hold / drink_deliver: levelled exactly if within this
   min_tcp_above_table_m: 0.03   # an empty gripper's planned paths: the fingers at least this far above the table

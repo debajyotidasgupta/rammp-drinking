@@ -72,8 +72,9 @@ def frame_from_points(pts: np.ndarray, camera_at: np.ndarray) -> tuple[np.ndarra
 
 
 def opening(mask: np.ndarray, arm, q, p: np.ndarray, R: np.ndarray):
-    """The opening the handle's mask outlines -- its convex hull less the mask, the largest piece of at least
-    handle.min_opening_px -- as (its centre on the handle's plane, [its height, its width] there), or None."""
+    """The opening the handle's mask outlines -- its convex hull less the mask, the largest piece (4-connected) of at
+    least handle.min_opening_px -- as (its centre on the handle's plane, [its height, its width] there); None without
+    one, seen nearly edge-on, or narrower either way than handle.min_opening_m (the closed fingers)."""
     import cv2
     from rammp_feeding import scene
     m = np.asarray(mask, np.uint8)
@@ -82,7 +83,7 @@ def opening(mask: np.ndarray, arm, q, p: np.ndarray, R: np.ndarray):
         return None
     hull = np.zeros_like(m)
     cv2.fillConvexPoly(hull, cv2.convexHull(max(cs, key=cv2.contourArea)), 1)
-    n, lab, stats, cent = cv2.connectedComponentsWithStats(((hull > 0) & (m == 0)).astype(np.uint8))
+    n, lab, stats, cent = cv2.connectedComponentsWithStats(((hull > 0) & (m == 0)).astype(np.uint8), connectivity=4)
     if n < 2:
         return None
     i = 1 + int(np.argmax(stats[1:, cv2.CC_STAT_AREA]))
@@ -94,9 +95,13 @@ def opening(mask: np.ndarray, arm, q, p: np.ndarray, R: np.ndarray):
     def on_plane(u, v):                                  # a colour pixel's ray met with the handle's plane
         d = Rc @ np.array([(u - c.cx) / c.fx, (v - c.cy) / c.fy, 1.0])
         return o + d * float((p - o) @ R[:, 2]) / float(d @ R[:, 2])
+    if abs(float((Rc[:, 2]) @ R[:, 2])) < 0.3:           # (its face nearly edge-on to the camera)
+        return None
     x, y, w, h = (int(v) for v in stats[i, :4])
     corners = np.array([on_plane(x, y), on_plane(x + w, y + h)])
     span = np.abs((corners[1] - corners[0]) @ R[:, :2])
+    if span.min() < float(D().handle.min_opening_m):
+        return None
     return on_plane(*cent[i]), [float(span[0]), float(span[1])]
 
 

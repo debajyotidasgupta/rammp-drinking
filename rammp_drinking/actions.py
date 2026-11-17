@@ -1,21 +1,22 @@
 """Drinking's actions, on rammp_feeding's guarded arm (rammp_feeding.arm.Arm, holding a Gripper or a Mug) and its
-delivery. `grip(position)` commands the gripper (0 open .. 1 closed; the engine: capability_engine's self.arm.gripper);
-`step(name, fraction, message)` reports each stage.
+delivery. `grip(position, speed, force)` commands the gripper (0 open .. 1 closed) and returns where the fingers stopped
+(None: not served); `step(name, fraction, message)` reports each stage.
 
-  pick_up   the fingers closed (they go into the handle); a planned path to drink_gaze; the handle found (handle.find):
-            the table's top and the grasp's poses from it; a planned path to grasp.rise_m above in front of the handle
-            (the cup in the planner's world), straight down in front of it; straight into the handle, up against its
-            top, the fingers opened (the hold, as the old
-            system's); straight up with the cup; a planned path to drink_hold, carrying it upright (every path that
-            carries the cup is the planner's HOLD_LEVEL: its tilt held all the way). The session (drink_state.json)
-            keeps the handle and the joints where the cup was lifted, for put_down
-  give_sip  a planned path to drink_deliver carrying the cup; rammp_feeding's presentation (a face, an open mouth, the
-            mouth measured once as it opens, one straight move to delivery.stop_m short of it); the cup held there
-            drinking.sip_s; back (straight to drink_deliver, a planned path to drink_hold). 7: no open mouth (back)
-  put_down  a planned path to where the cup was lifted; straight down to where it was picked up; the fingers closed (it
-            lets go); straight down out of the handle, back out in front of it and up grasp.rise_m; a planned path home
-  recover   after an action stopped mid-way: at the user, straight back to drink_deliver; the fingers in the handle with
-            the cup still standing, straight back out in front of it
+  pick_up   the fingers closed; a planned path to drink_gaze; the handle and its opening found (handle.find, kept in the
+            session); the arm shape in front of the handle nearest the arm's own, a planned path grasp.rise_m above it,
+            straight down in front of it, into the opening and up under its top; the fingers opened slowly: stopped by
+            the handle, the hold -- opened fully, it missed (out_of_handle, an error); straight up with the cup; a
+            planned path round the base the short way to drink_hold (every path carrying the cup is the planner's
+            HOLD_LEVEL). The session (drink_state.json) keeps the handle, the joints where the cup was lifted and the
+            paths run, for put_down
+  give_sip  a planned path to drink_deliver round the base the short way, carrying the cup; rammp_feeding's
+            presentation (a face, an open mouth, the mouth measured once as it opens, one straight move to
+            delivery.stop_m short of it); the cup held there drinking.sip_s; back straight to drink_deliver and the
+            swing retraced to drink_hold (Arm.retrace; a planned path where it cannot). 7: no open mouth (back)
+  put_down  the lift's path retraced to where the cup was lifted; straight down to where it stood; the fingers closed (it
+            lets go); out_of_handle; the pick's paths retraced, then home
+  recover   after an action stopped mid-way: at the user, straight back to drink_deliver; the empty fingers at the
+            session's handle, straight back out in front of it and up
 """
 
 from __future__ import annotations
@@ -47,14 +48,23 @@ def _held(s: dict) -> tuple[Handle | None, float | None]:
 
 
 def fingers(a) -> float | None:
-    """Where the fingers stopped (0 open .. 1 closed), grasp.settle_s after a command, from the arm node's
-    /gripper_state through the engine library's ArmInterface a; None when it serves none."""
-    time.sleep(float(D().grasp.settle_s))
+    """Where the fingers stopped (0 open .. 1 closed; the library's gripper() returns once they stop), from the arm
+    node's /gripper_state through the engine library's ArmInterface a; None when it serves none."""
     try:
         s = a.gripper_state()
         return float(s.position) if s is not None and s.present else None
     except Exception:  # noqa: BLE001
         return None
+
+
+def out_of_handle(arm: Arm, h: Handle, down: bool = True) -> None:
+    """The empty fingers out of the handle h: down to its bottom (down), straight back out in front of it, up
+    grasp.rise_m (clear of the planner's margin round the table)."""
+    G, P = D().grasp, grasp_poses(h)
+    if down:
+        arm.straight(*P["inside_bottom"], float(G.approach_mps), "down in the handle", torque_stop=False)
+    arm.straight(*P["pre"], float(G.approach_mps), "back out of the handle", torque_stop=False)
+    arm.straight(P["pre"][0] + np.array([0.0, 0.0, float(G.rise_m)]), P["pre"][1], float(G.lift_mps), "up from the cup")
 
 
 def pick_up(robot, arm: Arm, grip: Callable[[float], None], step: Step = _no_step, out: Path | None = None) -> dict:
@@ -69,6 +79,7 @@ def pick_up(robot, arm: Arm, grip: Callable[[float], None], step: Step = _no_ste
     step("find", 0.2, "Finding the cup's handle")
     h = find(robot, arm, out)
     tz, P = table_z(h), grasp_poses(h)
+    save_session(dict(holding=False, handle=h.to_json(), table_z=tz))   # (recover: out of this handle after a stop)
     arm.hold(Gripper(tz, h))
     step("grasp", 0.35, "Picking up the cup")
     above = (P["pre"][0] + np.array([0.0, 0.0, float(G.rise_m)]), P["pre"][1])
@@ -90,8 +101,7 @@ def pick_up(robot, arm: Arm, grip: Callable[[float], None], step: Step = _no_ste
         log.info("    the arm node serves no gripper position: the hold is not checked")
     elif at < float(G.gripper_open) + float(G.lock_margin):
         grip(float(G.gripper_closed))                    # nothing stopped them: not in the handle -- back out, empty
-        arm.straight(*P["inside_bottom"], float(G.approach_mps), "down in the handle", torque_stop=False)
-        arm.straight(*P["pre"], float(G.approach_mps), "back out of the handle", torque_stop=False)
+        out_of_handle(arm, h)
         raise MoveError("missed the handle: the fingers opened fully (%.2f) -- closed again and backed out" % at)
     else:
         log.info("    the fingers stopped at %.2f (open %.2f): the handle between them", at, float(G.gripper_open))
@@ -134,9 +144,12 @@ def give_sip(robot, arm: Arm, face, step: Step = _no_step, out: Path | None = No
     step("present", 0.3, "Waiting for an open mouth")
     try:
         rc = present(robot, arm, face, out, wait_open, open_timeout_s)
-    except MoveError:
+    except MoveError as e:
         step("back", 0.85, "Taking the drink back")
-        back(robot, arm, way)
+        try:
+            back(robot, arm, way)
+        except MoveError as e2:
+            raise MoveError("%s; then taking it back: %s" % (e, e2)) from e
         raise
     if rc == 7:
         log.info("    no open mouth -- not approaching; taking the drink back")
@@ -172,14 +185,14 @@ def put_down(robot, arm: Arm, grip: Callable[[float], None], step: Step = _no_st
         arm.travel(q_lift, "over where the cup stood", carrying=True, level=True)
     arm.straight(*P["inside_top"], float(G.lift_mps), "set the cup down", torque_stop=False)
     grip(float(G.gripper_closed))                        # the fingers close: it lets go
-    save_session({})
+    save_session(dict(holding=False, handle=h.to_json(), table_z=tz))
     arm.hold(Gripper(tz, h))
-    arm.straight(*P["inside_bottom"], float(G.approach_mps), "down out of the handle", torque_stop=False)
-    arm.straight(*P["pre"], float(G.approach_mps), "back out of the handle", torque_stop=False)
-    arm.straight(P["pre"][0] + np.array([0.0, 0.0, float(G.rise_m)]), P["pre"][1], float(G.lift_mps), "up from the cup")
+    out_of_handle(arm, h)
     step("home", 0.7, "Going home")
-    if not (arm.retrace(s.get("to_pre"), "back to drink_gaze") and arm.retrace(s.get("to_gaze"), "home")):
-        arm.travel(captured("home"), "home")
+    if arm.retrace(s.get("to_pre"), "back to drink_gaze"):
+        arm.retrace(s.get("to_gaze"), "back to where the pick started")
+    arm.travel(captured("home"), "home")                 # (there already: a settle at most)
+    save_session({})
     record.event("put_down", handle=h.to_json())
     return dict(put_down=True)
 
@@ -188,10 +201,10 @@ def home(robot, arm: Arm) -> None:
     arm.travel(captured("home"), "home")
 
 
-def recover(robot, arm: Arm, last: Handle | None) -> None:
+def recover(robot, arm: Arm) -> None:
     """Clear of the user and of the cup's handle before a planned move, after an action stopped mid-way (the planner
-    refuses a start inside its world): at the user, back to drink_deliver; the empty fingers in the handle of the cup
-    `last` (still standing), straight back out in front of it."""
+    refuses a start inside its world): at the user, back to drink_deliver; the empty fingers at the handle the session
+    keeps (the cup still standing), straight back out in front of it and up."""
     s = session()
     if s.get("holding"):
         T0, _ = arm.tool()
@@ -202,11 +215,9 @@ def recover(robot, arm: Arm, last: Handle | None) -> None:
         if float((T0 - Te) @ axis(Re)) > float(cfg.motion.arrived_m) and np.linalg.norm(T0 - Te) < 0.5:
             arm.straight(Te, Re, float(cfg.delivery.retract.back_off_mps), "back to drink_deliver", torque_stop=False)
         return
+    last, _ = _held(s)
     if last is not None:
         T0, _ = arm.tool()
         x = last.R.T @ (T0 - last.p)                     # the tool in the handle's frame
         if abs(x[1]) < 0.06 and -0.05 < x[0] < 0.30 and 0.0 < x[2] < 0.12:   # (in front of the handle, closer than pre)
-            G, P = D().grasp, grasp_poses(last)
-            arm.straight(*P["pre"], float(G.approach_mps), "back out of the handle", torque_stop=False)
-            arm.straight(P["pre"][0] + np.array([0.0, 0.0, float(G.rise_m)]), P["pre"][1], float(G.lift_mps),
-                         "up from the cup")
+            out_of_handle(arm, last, down=False)

@@ -81,8 +81,9 @@ def main() -> int:
         raise AssertionError("a missed handle was picked up")
     except MoveError as e:
         assert "missed the handle" in str(e), e
-    assert missed == [1.0, 0.0, 1.0] and config.session() == {}
-    assert np.linalg.norm(arm.tool()[0] - P["pre"][0]) < 0.006       # backed out in front of it, empty
+    assert missed == [1.0, 0.0, 1.0] and not config.session().get("holding")   # (the handle kept: recover)
+    up = P["pre"][0] + np.array([0.0, 0.0, float(cfg.drinking.grasp.rise_m)])
+    assert np.linalg.norm(arm.tool()[0] - up) < 0.006, "not backed out and up, empty"
     print("THE DRINK GOES THROUGH (%d moves; picked up, a sip %.0f mm short of the mouth, set down where it stood, home)"
           % (len(robot.moves), 1000 * stop))
     return 0
